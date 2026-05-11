@@ -25,6 +25,22 @@ public struct GardenState: Codable, Sendable, Equatable {
 /// Pure functions over `GardenState`. No I/O, no UI, easy to test.
 public enum Garden {
 
+    /// Whether the user can hatch another Sprout given their entitlement and trial policy.
+    /// Paid users: always yes. Free users: yes if under the cap *and* within the trial window
+    /// measured from their first hatch.
+    public static func canHatchMore(
+        in state: GardenState,
+        entitlement: Entitlement,
+        policy: TrialPolicy = .default,
+        at now: Date = Date()
+    ) -> Bool {
+        if entitlement == .paid { return true }
+        if state.sprouts.count >= policy.freeSproutCap { return false }
+        guard let first = state.sprouts.map(\.hatchedAt).min() else { return true }
+        let elapsed = now.timeIntervalSince(first)
+        return elapsed < Double(policy.freeTrialDays) * 24 * 60 * 60
+    }
+
     public static func hatch(
         in state: GardenState,
         nickname: String,

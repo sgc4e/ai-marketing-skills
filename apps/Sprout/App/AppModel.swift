@@ -17,14 +17,20 @@ final class AppModel {
     private let engine: FocusEngine
     private let store: GardenStore
     private let blocker: ScreenTimeBlocker
+    private let entitlement: EntitlementStore
+    private let trialPolicy: TrialPolicy
     private var tickTask: Task<Void, Never>?
 
     init(
         store: GardenStore,
-        blocker: ScreenTimeBlocker = NoopScreenTimeBlocker()
+        blocker: ScreenTimeBlocker = NoopScreenTimeBlocker(),
+        entitlement: EntitlementStore = InMemoryEntitlementStore(),
+        trialPolicy: TrialPolicy = .default
     ) {
         self.store = store
         self.blocker = blocker
+        self.entitlement = entitlement
+        self.trialPolicy = trialPolicy
         self.engine = FocusEngine()
         let loaded = (try? store.load()) ?? GardenState()
         self.garden = loaded
@@ -33,11 +39,23 @@ final class AppModel {
 
     // MARK: - Garden
 
-    func hatchSprout(nickname: String) {
+    var canHatchMore: Bool {
+        Garden.canHatchMore(
+            in: garden,
+            entitlement: entitlement.current(),
+            policy: trialPolicy,
+            at: Date()
+        )
+    }
+
+    @discardableResult
+    func hatchSprout(nickname: String) -> Bool {
+        guard canHatchMore else { return false }
         let (next, sprout) = Garden.hatch(in: garden, nickname: nickname, at: Date())
         garden = next
         activeSproutID = sprout.id
         persist()
+        return true
     }
 
     var activeSprout: Sprout? {
