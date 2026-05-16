@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Sprout" />
+<meta name="theme-color" content="#f4efe6" />
+<title>Sprout — Focus, gently</title>
+<style>
+  :root {
+    --bg: #f4efe6;
+    --card: #fffdf7;
+    --ink: #2d2a24;
+    --muted: #837c70;
+    --green: #7cb342;
+    --green-soft: #c9e2a8;
+    --accent: #5a8a2a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+  }
+  header {
+    width: 100%;
+    text-align: center;
+    padding: 24px 0 8px;
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: 0.3px;
+  }
+  header .tag {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  main {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 32px;
+    padding: 24px 0;
+  }
+  .screen { width: 100%; display: none; flex-direction: column; align-items: center; gap: 28px; }
+  .screen.active { display: flex; }
+
+  /* Sprout sprite */
+  .sprite-wrap {
+    width: 200px;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .sprite {
+    font-size: 120px;
+    line-height: 1;
+    display: inline-block;
+    transform-origin: 50% 80%;
+    animation: breathe 4s ease-in-out infinite;
+    transition: transform 0.6s ease;
+  }
+  .sprite.droopy { animation: droop 3s ease-in-out infinite; filter: saturate(0.6) brightness(0.95); }
+  .sprite.happy { animation: bounce 3s ease-in-out infinite; }
+
+  @keyframes breathe {
+    0%, 100% { transform: scale(1) translateY(0); }
+    50%      { transform: scale(1.04) translateY(-3px); }
+  }
+  @keyframes droop {
+    0%, 100% { transform: rotate(-8deg) translateY(4px); }
+    50%      { transform: rotate(-6deg) translateY(6px); }
+  }
+  @keyframes bounce {
+    0%, 100% { transform: scale(1) translateY(0); }
+    25%      { transform: scale(1.06) translateY(-8px) rotate(-3deg); }
+    75%      { transform: scale(1.06) translateY(-8px) rotate(3deg); }
+  }
+  @keyframes wobble {
+    0%, 100% { transform: rotate(-3deg); }
+    50%      { transform: rotate(3deg); }
+  }
+
+  /* Hatch */
+  .egg {
+    font-size: 120px;
+    animation: wobble 1.5s ease-in-out infinite;
+    cursor: pointer;
+  }
+  .hatch-hint {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  input.name {
+    width: 100%;
+    max-width: 280px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid #e6dfd1;
+    background: var(--card);
+    font-size: 17px;
+    font-family: inherit;
+    color: var(--ink);
+    text-align: center;
+    outline: none;
+  }
+  input.name:focus { border-color: var(--green); }
+
+  /* Timer */
+  .stage-label {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: lowercase;
+    letter-spacing: 0.5px;
+  }
+  .name-label {
+    font-size: 22px;
+    font-weight: 600;
+    margin-top: -8px;
+  }
+  .ring-wrap {
+    width: 220px;
+    height: 220px;
+    position: relative;
+  }
+  .ring-wrap svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+  .ring-bg { fill: none; stroke: #e9e2d3; stroke-width: 8; }
+  .ring-fg {
+    fill: none;
+    stroke: var(--green);
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s linear;
+  }
+  .time {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-variant-numeric: tabular-nums;
+  }
+  .time .mm-ss {
+    font-size: 44px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+  }
+  .time .of {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .duration-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .chip {
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 1px solid #e6dfd1;
+    color: var(--ink);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+  .chip.active {
+    background: var(--green);
+    color: white;
+    border-color: var(--green);
+  }
+  .chip:active { transform: scale(0.96); }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 320px;
+  }
+  button.primary, button.secondary {
+    flex: 1;
+    padding: 16px;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+    transition: transform 0.1s ease, opacity 0.2s ease;
+  }
+  button.primary {
+    background: var(--ink);
+    color: white;
+  }
+  button.secondary {
+    background: var(--card);
+    color: var(--ink);
+    border: 1px solid #e6dfd1;
+  }
+  button:active { transform: scale(0.98); }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  .stats {
+    display: flex;
+    gap: 24px;
+    color: var(--muted);
+    font-size: 14px;
+    justify-content: center;
+  }
+  .stats b { color: var(--ink); font-weight: 600; }
+
+  .toast {
+    position: fixed;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(40px);
+    background: var(--ink);
+    color: white;
+    padding: 14px 20px;
+    border-radius: 14px;
+    font-size: 15px;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    pointer-events: none;
+    max-width: 280px;
+    text-align: center;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .celebration {
+    position: fixed;
+    inset: 0;
+    background: rgba(244, 239, 230, 0.92);
+    backdrop-filter: blur(20px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 24px;
+    z-index: 10;
+    padding: 24px;
+    text-align: center;
+  }
+  .celebration.show { display: flex; }
+  .celebration .big-sprite { font-size: 140px; animation: bounce 2s ease-in-out infinite; }
+  .celebration h2 { margin: 0; font-size: 28px; font-weight: 600; }
+  .celebration p { margin: 0; color: var(--muted); font-size: 17px; }
+
+  footer {
+    width: 100%;
+    text-align: center;
+    padding: 16px 0 24px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sprout</h1>
+  <div class="tag">focus, gently</div>
+</header>
+
+<main>
+
+  <!-- HATCH SCREEN -->
+  <section class="screen" id="screen-hatch">
+    <div class="egg" id="egg">🥚</div>
+    <div class="hatch-hint">Tap the egg, then give your Sprout a name.</div>
+    <input class="name" id="nickname" type="text" placeholder="Name your Sprout" maxlength="20" />
+    <button class="primary" id="hatch-btn" style="max-width:280px;">Hatch</button>
+  </section>
+
+  <!-- FOCUS SCREEN -->
+  <section class="screen" id="screen-focus">
+    <div class="stage-label" id="stage-label">seed</div>
+    <div class="name-label" id="name-label">Sprout</div>
+
+    <div class="sprite-wrap">
+      <div class="sprite" id="sprite">🌱</div>
+    </div>
+
+    <div class="ring-wrap">
+      <svg viewBox="0 0 100 100">
+        <circle class="ring-bg" cx="50" cy="50" r="46" />
+        <circle class="ring-fg" id="ring-fg" cx="50" cy="50" r="46"
+                stroke-dasharray="289.027" stroke-dashoffset="0" />
+      </svg>
+      <div class="time">
+        <div class="mm-ss" id="time-display">25:00</div>
+        <div class="of" id="time-of">of 25 min</div>
+      </div>
+    </div>
+
+    <div class="duration-row" id="duration-row"></div>
+
+    <div class="actions">
+      <button class="secondary" id="give-up-btn" style="display:none;">Give up</button>
+      <button class="primary" id="start-btn">Start</button>
+    </div>
+
+    <div class="stats">
+      <span>🔥 <b id="streak">0</b> day streak</span>
+      <span>⏱ <b id="total-min">0</b> min total</span>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Your data lives on this device. <a href="javascript:resetAll()">Reset</a>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<div class="celebration" id="celebration">
+  <div class="big-sprite" id="celebration-sprite">🌱</div>
+  <h2>Nice work.</h2>
+  <p id="celebration-text">Mossie earned 25 min.</p>
+  <button class="primary" id="celebration-dismiss" style="max-width:240px;">Keep going</button>
+</div>
+
+<script>
+  // ---------- State ----------
+  const STORAGE_KEY = 'sprout.v1';
+  const DEFAULT = {
+    hatched: false,
+    name: '',
+    emoji: '🌱',
+    totalMinutes: 0,
+    droopyUntil: null,
+    streakDays: 0,
+    lastFocusDay: null,
+    plannedMinutes: 25,
+  };
+  let state = load();
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { ...DEFAULT };
+      return { ...DEFAULT, ...JSON.parse(raw) };
+    } catch { return { ...DEFAULT }; }
+  }
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  function resetAll() {
+    if (!confirm('Reset Sprout? This clears everything.')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }
+
+  // ---------- Sprite logic ----------
+  const STAGES = [
+    { name: 'seed',   threshold: 0,   emoji: '🌱' },
+    { name: 'sprout', threshold: 25,  emoji: '🌿' },
+    { name: 'bloom',  threshold: 120, emoji: '🌳' },
+    { name: 'elder',  threshold: 600, emoji: '🌲' },
+  ];
+  function currentStage() {
+    return [...STAGES].reverse().find(s => state.totalMinutes >= s.threshold) || STAGES[0];
+  }
+  function mood() {
+    if (state.droopyUntil && Date.now() < state.droopyUntil) return 'droopy';
+    if (state.totalMinutes >= 120) return 'happy';
+    return 'content';
+  }
+
+  // ---------- Screen routing ----------
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function renderFocusScreen() {
+    const stage = currentStage();
+    document.getElementById('stage-label').textContent = stage.name;
+    document.getElementById('name-label').textContent = state.name;
+    const sprite = document.getElementById('sprite');
+    sprite.textContent = stage.emoji;
+    sprite.className = 'sprite ' + mood();
+    document.getElementById('streak').textContent = state.streakDays;
+    document.getElementById('total-min').textContent = state.totalMinutes;
+    renderTime(state.plannedMinutes * 60, state.plannedMinutes * 60);
+    renderDurationChips();
+  }
+
+  function renderDurationChips() {
+    const opts = [5, 10, 15, 25, 45, 60];
+    const row = document.getElementById('duration-row');
+    row.innerHTML = '';
+    opts.forEach(m => {
+      const c = document.createElement('button');
+      c.className = 'chip' + (m === state.plannedMinutes ? ' active' : '');
+      c.textContent = m + ' min';
+      c.onclick = () => {
+        if (session.active) return;
+        state.plannedMinutes = m;
+        save();
+        renderFocusScreen();
+      };
+      row.appendChild(c);
+    });
+  }
+
+  function renderTime(remaining, total) {
+    const mm = Math.floor(remaining / 60).toString().padStart(2, '0');
+    const ss = Math.floor(remaining % 60).toString().padStart(2, '0');
+    document.getElementById('time-display').textContent = `${mm}:${ss}`;
+    document.getElementById('time-of').textContent = `of ${Math.floor(total/60)} min`;
+    const C = 2 * Math.PI * 46;
+    const progress = 1 - (remaining / total);
+    document.getElementById('ring-fg').setAttribute('stroke-dashoffset', C * progress);
+  }
+
+  // ---------- Session ----------
+  const session = {
+    active: false,
+    startedAt: 0,
+    plannedSeconds: 0,
+    tickHandle: null,
+  };
+
+  function startFocus() {
+    if (session.active) return;
+    session.active = true;
+    session.startedAt = Date.now();
+    session.plannedSeconds = state.plannedMinutes * 60;
+    document.getElementById('start-btn').style.display = 'none';
+    document.getElementById('give-up-btn').style.display = 'block';
+    document.querySelectorAll('.chip').forEach(c => c.disabled = true);
+    tick();
+    session.tickHandle = setInterval(tick, 500);
+  }
+
+  function tick() {
+    if (!session.active) return;
+    const elapsed = (Date.now() - session.startedAt) / 1000;
+    const remaining = Math.max(0, session.plannedSeconds - elapsed);
+    renderTime(remaining, session.plannedSeconds);
+    if (remaining <= 0) completeSession();
+  }
+
+  function completeSession() {
+    if (!session.active) return;
+    const earned = Math.round(session.plannedSeconds / 60);
+    finishSession({ outcome: 'completed', earned });
+    showCelebration(earned);
+  }
+
+  function giveUp() {
+    if (!session.active) return;
+    if (!confirm('Give up this session? No XP, but your Sprout won\'t droop.')) return;
+    finishSession({ outcome: 'cancelled', earned: 0 });
+  }
+
+  function abandonSession() {
+    if (!session.active) return;
+    const elapsed = (Date.now() - session.startedAt) / 1000;
+    const partial = Math.max(0, Math.floor(elapsed / 60 / 2));
+    state.droopyUntil = Date.now() + 60 * 60 * 1000;
+    finishSession({ outcome: 'abandoned', earned: partial });
+    toast(`${state.name} got half credit. Droopy for a bit.`);
+  }
+
+  function finishSession({ outcome, earned }) {
+    clearInterval(session.tickHandle);
+    session.active = false;
+    if (earned > 0) {
+      state.totalMinutes += earned;
+      if (outcome === 'completed') {
+        state.droopyUntil = null;
+        updateStreak();
+      }
+    }
+    save();
+    document.getElementById('start-btn').style.display = 'block';
+    document.getElementById('give-up-btn').style.display = 'none';
+    document.querySelectorAll('.chip').forEach(c => c.disabled = false);
+    renderFocusScreen();
+  }
+
+  function updateStreak() {
+    const today = new Date().toDateString();
+    if (state.lastFocusDay === today) return;
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    state.streakDays = (state.lastFocusDay === yesterday) ? state.streakDays + 1 : 1;
+    state.lastFocusDay = today;
+  }
+
+  // ---------- Backgrounding ----------
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && session.active) abandonSession();
+  });
+
+  // ---------- Celebration ----------
+  function showCelebration(earned) {
+    const el = document.getElementById('celebration');
+    document.getElementById('celebration-sprite').textContent = currentStage().emoji;
+    document.getElementById('celebration-text').textContent = `${state.name} earned ${earned} min.`;
+    el.classList.add('show');
+  }
+  document.getElementById('celebration-dismiss').onclick = () => {
+    document.getElementById('celebration').classList.remove('show');
+  };
+
+  // ---------- Toast ----------
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  // ---------- Hatch flow ----------
+  document.getElementById('hatch-btn').onclick = () => {
+    const name = document.getElementById('nickname').value.trim() || 'Mossie';
+    state.hatched = true;
+    state.name = name;
+    save();
+    showScreen('screen-focus');
+    renderFocusScreen();
+  };
+  document.getElementById('nickname').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('hatch-btn').click();
+  });
+
+  // ---------- Wire up ----------
+  document.getElementById('start-btn').onclick = startFocus;
+  document.getElementById('give-up-btn').onclick = giveUp;
+
+  // ---------- Boot ----------
+  if (state.hatched) {
+    showScreen('screen-focus');
+    renderFocusScreen();
+  } else {
+    showScreen('screen-hatch');
+  }
+</script>
+</body>
+</html>
